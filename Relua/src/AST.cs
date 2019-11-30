@@ -12,13 +12,10 @@ namespace Relua.AST {
         public abstract void Accept(IVisitor visitor);
 
         public override string ToString() {
-            var s = new StringBuilder();
-            var sw = new StringWriter(s);
-            Write(new IndentAwareTextWriter(sw));
-            return s.ToString();
+            return ToString(false);
         }
 
-        public string ToString(bool one_line) {
+        public virtual string ToString(bool one_line) {
             var s = new StringBuilder();
             var sw = new StringWriter(s);
             var iw = new IndentAwareTextWriter(sw);
@@ -370,13 +367,16 @@ namespace Relua.AST {
         public IExpression Table;
         public IExpression Index;
 
-        private bool GetIdentifierAccessChain(StringBuilder s) {
+        private bool GetIdentifierAccessChain(StringBuilder s, bool is_method_access_top_level = false) {
             if (Table is TableAccess) {
                 if (!((TableAccess)Table).GetIdentifierAccessChain(s)) return false;
             } else if (Table is Variable) {
                 s.Append(((Variable)Table).Name);
             } else return false;
-            s.Append(".");
+
+            if (is_method_access_top_level) {
+                s.Append(":");
+            } else s.Append(".");
 
             if (Index is StringLiteral) {
                 var lit = (StringLiteral)Index;
@@ -388,9 +388,9 @@ namespace Relua.AST {
             return true;
         }
 
-        public string GetIdentifierAccessChain() {
+        public string GetIdentifierAccessChain(bool is_method_access) {
             var s = new StringBuilder();
-            if (!GetIdentifierAccessChain(s)) return null;
+            if (!GetIdentifierAccessChain(s, is_method_access)) return null;
             return s.ToString();
         }
 
@@ -661,24 +661,29 @@ namespace Relua.AST {
 
     /// <summary>
     /// A block statement. Usually used as part of another statement and not
-    /// a standalone statement by itself. However, if `Alone` is true, then
-    /// this node represents the `do`/`end` construct (most commonly used
-    /// for scope control) and is a valid standalone statement.
+    /// a standalone statement by itself. If `TopLevel` is true, then the `do
+    /// end` construct will never be emitted, even if the node is not being
+    /// written by another node.
     /// 
     /// ```
-    /// -- Alone = true
     /// do
     ///     print("abc")
     /// end
     /// </summary>
     public class Block : Node, IStatement {
         public List<IStatement> Statements = new List<IStatement>();
-        public bool Alone = false;
+        public bool TopLevel;
 
         public bool IsEmpty => Statements.Count == 0;
 
         public override void Write(IndentAwareTextWriter writer) {
-            if (Alone) {
+            Write(writer, true);
+        }
+
+        public void Write(IndentAwareTextWriter writer, bool alone) {
+            if (TopLevel && alone) alone = false;
+
+            if (alone) {
                 writer.Write("do");
                 writer.IncreaseIndent();
                 writer.WriteLine();
@@ -692,7 +697,7 @@ namespace Relua.AST {
                 //}
                 if (i < Statements.Count - 1) writer.WriteLine();
             }
-            if (Alone) {
+            if (alone) {
                 writer.DecreaseIndent();
                 writer.WriteLine();
                 writer.Write("end");
@@ -717,7 +722,7 @@ namespace Relua.AST {
             writer.Write(" then");
             writer.IncreaseIndent();
             writer.WriteLine();
-            Block.Write(writer);
+            Block.Write(writer, false);
             writer.DecreaseIndent();
             writer.WriteLine();
         }
@@ -752,7 +757,7 @@ namespace Relua.AST {
                 writer.Write("else");
                 writer.IncreaseIndent();
                 writer.WriteLine();
-                Else.Write(writer);
+                Else.Write(writer, false);
                 writer.DecreaseIndent();
                 writer.WriteLine();
             }
@@ -781,7 +786,7 @@ namespace Relua.AST {
             writer.Write(" do");
             writer.IncreaseIndent();
             writer.WriteLine();
-            Block.Write(writer);
+            Block.Write(writer, false);
             writer.DecreaseIndent();
             writer.WriteLine();
             writer.Write("end");
@@ -807,7 +812,7 @@ namespace Relua.AST {
             writer.Write("repeat");
             writer.IncreaseIndent();
             writer.WriteLine();
-            Block.Write(writer);
+            Block.Write(writer, false);
             writer.DecreaseIndent();
             writer.WriteLine();
             writer.Write("until ");
@@ -835,6 +840,13 @@ namespace Relua.AST {
     /// and also correctly writing it (avoiding the verbose `something = function()
     /// ... end` if unnecessary).
     /// 
+    /// If the function was parsed from the `function a:b() end` syntax, it will
+    /// have `ImplicitSelf` set to `true` (and the extra `self` argument). If
+    /// this field is `true` while writing a named function Assignment, no
+    /// `self` argument will be emitted and the same method definition
+    /// syntax will be used. In any other case, a `FunctionDefinition` with
+    /// `ImplicitSelf` will emit arguments normally (including the `self`).
+    /// 
     /// ```
     /// function() end
     /// function()
@@ -847,15 +859,22 @@ namespace Relua.AST {
         public List<string> ArgumentNames = new List<string>();
         public Block Block;
         public bool AcceptsVarargs = false;
+        public bool ImplicitSelf = false;
 
         public override void Write(IndentAwareTextWriter writer) {
             Write(writer, false);
         }
 
-        public void Write(IndentAwareTextWriter writer, bool start_from_args) {
-            if (!start_from_args) writer.Write("function");
+        public void Write(IndentAwareTextWriter writer, bool from_named) {
+            if (!from_named) writer.Write("function");
             writer.Write("(");
-            for (var i = 0; i < ArgumentNames.Count; i++) {
+
+            var arg_start_idx = 0;
+
+            if (ImplicitSelf && from_named) arg_start_idx += 1;
+            // Skips the self for method defs
+
+            for (var i = arg_start_idx; i < ArgumentNames.Count; i++) {
                 var arg = ArgumentNames[i];
                 writer.Write(arg);
                 if (i < ArgumentNames.Count - 1) writer.Write(", ");
@@ -869,7 +888,7 @@ namespace Relua.AST {
             else {
                 writer.IncreaseIndent();
                 writer.WriteLine();
-                Block.Write(writer);
+                Block.Write(writer, false);
                 writer.DecreaseIndent();
                 writer.WriteLine();
             }
@@ -912,7 +931,7 @@ namespace Relua.AST {
         public void WriteNamedFunctionStyle(IndentAwareTextWriter writer, string name, FunctionDefinition func) {
             writer.Write("function ");
             writer.Write(name);
-            func.Write(writer, start_from_args: true);
+            func.Write(writer, from_named: true);
         }
 
         public void WriteGenericStyle(IndentAwareTextWriter writer) {
@@ -939,8 +958,9 @@ namespace Relua.AST {
                     funcname = ((Variable)Targets[0]).Name;
                     WriteNamedFunctionStyle(writer, funcname, Values[0] as FunctionDefinition);
                 } else if (Targets[0] is TableAccess) {
-                    funcname = ((TableAccess)Targets[0]).GetIdentifierAccessChain();
-                    if (funcname != null) WriteNamedFunctionStyle(writer, funcname, Values[0] as FunctionDefinition);
+                    var func = Values[0] as FunctionDefinition;
+                    funcname = ((TableAccess)Targets[0]).GetIdentifierAccessChain(is_method_access: func.ImplicitSelf);
+                    if (funcname != null) WriteNamedFunctionStyle(writer, funcname, func);
                     else WriteGenericStyle(writer);
                 } else WriteGenericStyle(writer);
             } else {
@@ -992,7 +1012,7 @@ namespace Relua.AST {
             writer.Write(" do");
             writer.IncreaseIndent();
             writer.WriteLine();
-            Block.Write(writer);
+            Block.Write(writer, false);
             writer.DecreaseIndent();
             writer.WriteLine();
             writer.Write("end");
@@ -1028,7 +1048,7 @@ namespace Relua.AST {
             writer.Write(" do");
             writer.IncreaseIndent();
             writer.WriteLine();
-            Block.Write(writer);
+            Block.Write(writer, false);
             writer.DecreaseIndent();
             writer.WriteLine();
             writer.Write("end");

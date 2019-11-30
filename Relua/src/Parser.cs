@@ -310,7 +310,7 @@ namespace Relua {
             return new TableConstructor { Entries = entries };
         }
 
-        public FunctionDefinition ReadFunctionDefinition(bool start_from_params = false) {
+        public FunctionDefinition ReadFunctionDefinition(bool start_from_params = false, bool self = false) {
             if (!start_from_params) {
                 if (!CurToken.IsPunctuation("function")) ThrowExpect("function", CurToken);
                 Move();
@@ -321,6 +321,8 @@ namespace Relua {
 
             var varargs = false;
             var args = new List<string>();
+
+            if (self) args.Add("self");
 
             if (!CurToken.IsPunctuation(")")) {
                 if (CurToken.Type != TokenType.Identifier) ThrowExpect("identifier", CurToken);
@@ -355,7 +357,8 @@ namespace Relua {
             return new FunctionDefinition {
                 ArgumentNames = args,
                 Block = new Block { Statements = statements },
-                AcceptsVarargs = varargs
+                AcceptsVarargs = varargs,
+                ImplicitSelf = self
             };
         }
 
@@ -696,7 +699,18 @@ namespace Relua {
                 };
                 Move();
             }
-            var func_def = ReadFunctionDefinition(start_from_params: true);
+            var is_method_def = false;
+            if (CurToken.IsPunctuation(":")) {
+                is_method_def = true;
+                Move();
+                if (CurToken.Type != TokenType.Identifier) ThrowExpect("identifier", CurToken);
+                expr = new TableAccess {
+                    Table = expr as IExpression,
+                    Index = new StringLiteral { Value = CurToken.Value }
+                };
+                Move();
+            }
+            var func_def = ReadFunctionDefinition(start_from_params: true, self: is_method_def);
             return new Assignment {
                 Targets = new List<IAssignable> { expr },
                 Values = new List<IExpression> { func_def }
@@ -735,7 +749,7 @@ namespace Relua {
 
             Move();
 
-            return new Block { Statements = statements, Alone = alone };
+            return new Block { Statements = statements };
         }
 
         public GenericFor ReadGenericFor() {
@@ -887,7 +901,7 @@ namespace Relua {
         /// <summary>
         /// Reads a list of statements.
         /// </summary>
-        /// <returns>`Block` node (`Alone` = `false`).</returns>
+        /// <returns>`Block` node (`TopLevel` = `true`).</returns>
         public Block Read() {
             var statements = new List<IStatement>();
 
@@ -895,7 +909,7 @@ namespace Relua {
                 statements.Add(ReadStatement());
             }
 
-            return new Block { Statements = statements };
+            return new Block { Statements = statements, TopLevel = true };
         }
     }
 }

@@ -21,7 +21,7 @@ namespace Relua.Script {
             ListNewIndexMethodMap[type] = type.GetMethod("set_Item");
             ListCountMethodMap[type] = type.GetMethod("get_Count");
             ListAddMethodMap[type] = type.GetMethod("Add");
-            ListRemoveMethodMap[type] = type.GetMethod("Remove");
+            ListRemoveMethodMap[type] = type.GetMethod("RemoveAt");
             ListInsertMethodMap[type] = type.GetMethod("Insert");
             ListClearMethodMap[type] = type.GetMethod("Clear");
         }
@@ -31,6 +31,7 @@ namespace Relua.Script {
             CreateListMethodMap(typeof(List<IExpression>));
             CreateListMethodMap(typeof(List<IAssignable>));
             CreateListMethodMap(typeof(List<TableConstructor.Entry>));
+            CreateListMethodMap(typeof(List<string>));
         }
 
         private void CreateGenericMetamethods() {
@@ -98,6 +99,7 @@ namespace Relua.Script {
             if (type == typeof(List<IExpression>)) return "List<IExpression>";
             if (type == typeof(List<IAssignable>)) return "List<IAssignable>";
             if (type == typeof(List<TableConstructor.Entry>)) return "List<TableConstructor.Entry>";
+            if (type == typeof(List<string>)) return "List<string>";
 
             throw new Exception($"Unsupported type: '{type}'");
         }
@@ -132,6 +134,7 @@ namespace Relua.Script {
             CreateListMetatable(typeof(List<IExpression>), "List<IExpression>");
             CreateListMetatable(typeof(List<IAssignable>), "List<IAssignable>");
             CreateListMetatable(typeof(List<TableConstructor.Entry>), "List<TableConstructor.Entry>");
+            CreateListMetatable(typeof(List<string>), "List<string>");
         }
     }
 }

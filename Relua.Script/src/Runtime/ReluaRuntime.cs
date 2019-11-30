@@ -35,6 +35,19 @@ namespace Relua.Script {
 
             var node = ResolveReference(refid);
 
+            if (key == "Type") {
+                if (node is UnaryOp) {
+                    PushString(((UnaryOp)node).Type.ToString());
+                    return 1;
+                } else if (node is BinaryOp) {
+                    PushString(((BinaryOp)node).Type.ToString());
+                    return 1;
+                } else {
+                    Lua.lua_pushnil(LuaStatePtr);
+                    return 1;
+                }
+            }
+
             if (TypeFieldMap.TryGetValue(node.GetType(), out Dictionary<string, FieldInfo> map)) {
                 if (map.TryGetValue(key, out FieldInfo info)) {
                     Push(info.GetValue(node));
@@ -55,12 +68,41 @@ namespace Relua.Script {
 
             var node = ResolveReference(refid);
 
+            if (key == "Type") {
+                if (node is UnaryOp) {
+                    ((UnaryOp)node).Type = (UnaryOp.OpType)Enum.Parse(typeof(UnaryOp.OpType), val.ToString());
+                    return 0;
+                } else if (node is BinaryOp) {
+                    ((BinaryOp)node).Type = (BinaryOp.OpType)Enum.Parse(typeof(BinaryOp.OpType), val.ToString());
+                    return 0;
+                }
+            }
+
             if (TypeFieldMap.TryGetValue(node.GetType(), out Dictionary<string, FieldInfo> map)) {
                 if (map.TryGetValue(key, out FieldInfo info)) {
                     info.SetValue(node, val);
                     return 0;
                 }
             }
+
+            return 0;
+        }
+
+        private int LuaListReverseIter(IntPtr state) {
+            if (Lua.lua_type(state, -1) != LuaType.Function) throw new Exception($":reverse_iter must be given a function");
+            var refid = ToReference(-2);
+            var list = ResolveReference(refid);
+
+            var count = (int)ListCountMethodMap[list.GetType()].Invoke(list, null);
+            for (int i = count - 1; i >= 0; i--) {
+                Lua.lua_pushvalue(state, -1);
+                Lua.lua_pushinteger(state, (IntPtr)i + 1);
+                var obj = ListIndexMethodMap[list.GetType()].Invoke(list, new object[] { i });
+                PushObject(obj);
+                ProtCall(2, 0);
+            }
+
+            Lua.lua_pop(state, 2);
 
             return 0;
         }
@@ -73,7 +115,7 @@ namespace Relua.Script {
             var count = (int)ListCountMethodMap[list.GetType()].Invoke(list, null);
             for (int i = 0; i < count; i++) {
                 Lua.lua_pushvalue(state, -1);
-                Lua.lua_pushinteger(state, (IntPtr)i);
+                Lua.lua_pushinteger(state, (IntPtr)i + 1);
                 var obj = ListIndexMethodMap[list.GetType()].Invoke(list, new object[] { i });
                 PushObject(obj);
                 ProtCall(2, 0);
@@ -158,6 +200,8 @@ namespace Relua.Script {
                 Lua.lua_pushcfunction(state, LuaListClear);
             } else if (field_name == "iter") {
                 Lua.lua_pushcfunction(state, LuaListIter);
+            } else if (field_name == "reverse_iter") {
+                Lua.lua_pushcfunction(state, LuaListReverseIter);
             } else {
                 Lua.lua_pushnil(state);
             }
@@ -185,7 +229,7 @@ namespace Relua.Script {
             }
             var indexer = ListIndexMethodMap[type];
 
-            PushObject(indexer.Invoke(list, new object[] { idx }));
+            Push(indexer.Invoke(list, new object[] { idx }));
 
             return 1;
         }
