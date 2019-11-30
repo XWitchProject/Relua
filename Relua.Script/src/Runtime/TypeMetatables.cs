@@ -32,6 +32,7 @@ namespace Relua.Script {
             CreateListMethodMap(typeof(List<IAssignable>));
             CreateListMethodMap(typeof(List<TableConstructor.Entry>));
             CreateListMethodMap(typeof(List<string>));
+            CreateListMethodMap(typeof(List<ConditionalBlock>));
         }
 
         private void CreateGenericMetamethods() {
@@ -100,6 +101,7 @@ namespace Relua.Script {
             if (type == typeof(List<IAssignable>)) return "List<IAssignable>";
             if (type == typeof(List<TableConstructor.Entry>)) return "List<TableConstructor.Entry>";
             if (type == typeof(List<string>)) return "List<string>";
+            if (type == typeof(List<ConditionalBlock>)) return "List<ConditionalBlock>";
 
             throw new Exception($"Unsupported type: '{type}'");
         }
@@ -135,6 +137,7 @@ namespace Relua.Script {
             CreateListMetatable(typeof(List<IAssignable>), "List<IAssignable>");
             CreateListMetatable(typeof(List<TableConstructor.Entry>), "List<TableConstructor.Entry>");
             CreateListMetatable(typeof(List<string>), "List<string>");
+            CreateListMetatable(typeof(List<ConditionalBlock>), "List<ConditionalBlock>");
         }
     }
 }
