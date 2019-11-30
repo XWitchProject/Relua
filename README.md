@@ -24,6 +24,10 @@ On my machine, it takes NetLua on average 1.3 sec to parse a 750K file, while Re
 
 Relua.Script runs on top of the standard Lua 5.1 implementation (or LuaJIT) to expose an API for AST node manipulation. In essence, Relua.Script enables you to use a Lua script to modify a Lua script using its runtime representation. This combined with Relua's ability to write the AST back into code makes for a very powerful and extensible transformation engine.
 
+## API
+
+[Check out the detailed API documentation here](https://github.com/XWitchProject/Relua/blob/master/API.md).
+
 ## Example
 
 ```lua
