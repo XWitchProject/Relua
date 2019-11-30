@@ -370,6 +370,30 @@ namespace Relua.AST {
         public IExpression Table;
         public IExpression Index;
 
+        private bool GetIdentifierAccessChain(StringBuilder s) {
+            if (Table is TableAccess) {
+                if (!((TableAccess)Table).GetIdentifierAccessChain(s)) return false;
+            } else if (Table is Variable) {
+                s.Append(((Variable)Table).Name);
+            } else return false;
+            s.Append(".");
+
+            if (Index is StringLiteral) {
+                var lit = (StringLiteral)Index;
+                if (!lit.Value.IsIdentifier()) return false;
+
+                s.Append(lit.Value);
+            } else return false;
+
+            return true;
+        }
+
+        public string GetIdentifierAccessChain() {
+            var s = new StringBuilder();
+            if (!GetIdentifierAccessChain(s)) return null;
+            return s.ToString();
+        }
+
         public void WriteDotStyle(IndentAwareTextWriter writer, string index) {
             if (Table is StringLiteral) writer.Write("(");
             Table.Write(writer);
@@ -388,13 +412,11 @@ namespace Relua.AST {
         }
 
         public override void Write(IndentAwareTextWriter writer) {
-            writer.Write("(");
             if (Index is StringLiteral && ((StringLiteral)Index).Value.IsIdentifier()) {
                 WriteDotStyle(writer, ((StringLiteral)Index).Value);
             } else {
                 WriteGenericStyle(writer);
             }
-            writer.Write(")");
         }
 
         public override void Accept(IVisitor visitor) => visitor.Visit(this);
@@ -910,8 +932,17 @@ namespace Relua.AST {
         public override void Write(IndentAwareTextWriter writer) {
             if (IsLocal) writer.Write("local ");
 
-            if (Targets.Count == 1 && Targets[0] is Variable && ((Variable)Targets[0]).Name.IsIdentifier() && Values.Count == 1 && Values[0] is FunctionDefinition) {
-                WriteNamedFunctionStyle(writer, ((Variable)Targets[0]).Name, Values[0] as FunctionDefinition);
+            if (Targets.Count == 1 && Values.Count == 1 && Values[0] is FunctionDefinition) {
+                string funcname = null;
+
+                if (Targets[0] is Variable && ((Variable)Targets[0]).Name.IsIdentifier()) {
+                    funcname = ((Variable)Targets[0]).Name;
+                    WriteNamedFunctionStyle(writer, funcname, Values[0] as FunctionDefinition);
+                } else if (Targets[0] is TableAccess) {
+                    funcname = ((TableAccess)Targets[0]).GetIdentifierAccessChain();
+                    if (funcname != null) WriteNamedFunctionStyle(writer, funcname, Values[0] as FunctionDefinition);
+                    else WriteGenericStyle(writer);
+                } else WriteGenericStyle(writer);
             } else {
                 WriteGenericStyle(writer);
             }

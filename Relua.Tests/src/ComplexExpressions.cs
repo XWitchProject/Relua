@@ -66,7 +66,7 @@ namespace Relua.Tests {
             var parser = new Parser(tokenizer);
             var expr = parser.ReadExpression();
             Assert.IsInstanceOf(typeof(AST.TableAccess), expr);
-            Assert.AreEqual("((a.b).c)", expr.ToString());
+            Assert.AreEqual("a.b.c", expr.ToString());
         }
 
         [Test]
@@ -74,7 +74,7 @@ namespace Relua.Tests {
             var tokenizer = new Tokenizer("a.b.c.d + a.e");
             var parser = new Parser(tokenizer);
             var expr = parser.ReadExpression();
-            Assert.AreEqual("((((a.b).c).d) + (a.e))", expr.ToString());
+            Assert.AreEqual("(a.b.c.d + a.e)", expr.ToString());
         }
 
         [Test]
@@ -82,7 +82,7 @@ namespace Relua.Tests {
             var tokenizer = new Tokenizer("a[\"not identifier\"] + a.e");
             var parser = new Parser(tokenizer);
             var expr = parser.ReadExpression();
-            Assert.AreEqual("((a[\"not identifier\"]) + (a.e))", expr.ToString());
+            Assert.AreEqual("(a[\"not identifier\"] + a.e)", expr.ToString());
         }
 
         [Test]

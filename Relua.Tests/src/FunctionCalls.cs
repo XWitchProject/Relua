@@ -25,7 +25,7 @@ namespace Relua.Tests {
             var tokenizer = new Tokenizer("print('Hello, world!', 3 + 4, a.b)");
             var parser = new Parser(tokenizer);
             var expr = parser.ReadExpression();
-            Assert.AreEqual("print(\"Hello, world!\", (3 + 4), (a.b))", expr.ToString());
+            Assert.AreEqual("print(\"Hello, world!\", (3 + 4), a.b)", expr.ToString());
         }
 
         [Test]

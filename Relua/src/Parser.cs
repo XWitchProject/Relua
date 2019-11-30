@@ -685,11 +685,20 @@ namespace Relua {
             if (!CurToken.IsPunctuation("function")) ThrowExpect("function", CurToken);
             Move();
             if (CurToken.Type != TokenType.Identifier) ThrowExpect("identifier", CurToken);
-            var name = CurToken.Value;
+            IAssignable expr = new Variable { Name = CurToken.Value };
             Move();
+            while (CurToken.IsPunctuation(".")) {
+                Move();
+                if (CurToken.Type != TokenType.Identifier) ThrowExpect("identifier", CurToken);
+                expr = new TableAccess {
+                    Table = expr as IExpression,
+                    Index = new StringLiteral { Value = CurToken.Value }
+                };
+                Move();
+            }
             var func_def = ReadFunctionDefinition(start_from_params: true);
             return new Assignment {
-                Targets = new List<IAssignable> { new Variable { Name = name } },
+                Targets = new List<IAssignable> { expr },
                 Values = new List<IExpression> { func_def }
             };
         }

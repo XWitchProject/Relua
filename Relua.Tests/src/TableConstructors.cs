@@ -84,7 +84,7 @@ namespace Relua.Tests {
             var tokenizer = new Tokenizer("{ 1 + 3, a.b.c }");
             var parser = new Parser(tokenizer);
             var expr = parser.ReadExpression() as AST.TableConstructor;
-            Assert.AreEqual("{ (1 + 3), ((a.b).c) }", expr.ToString(one_line: true));
+            Assert.AreEqual("{ (1 + 3), a.b.c }", expr.ToString(one_line: true));
         }
     }
 }
