@@ -8,7 +8,7 @@ Relua is created to work out of the box with Lua 5.1 and LuaJIT, however the des
 
 ## Parsing
 
-Relua does not use any library to aid the parsing. Instead, it implements everything from the bare primitives up to complex expressions in a procedural manner. While this does significantly increase the size and complexity of the code, it makes it much easier to modify the parser to suit various use cases and to implement language quirks that would require ugly hacks to implement on top of primitives provided by parsing engines (more on that below).
+Relua does not use any library to aid the parsing. Instead, it implements everything from the bare primitives up to complex expressions in a procedural manner. While this does significantly increase the size and complexity of the code, it makes it much easier to modify the parser to suit various use cases and to implement language quirks that would require ugly hacks to implement on top of primitives provided by parsing engines.
 
 ## Why not just emit bytecode?
 
