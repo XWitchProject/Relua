@@ -20,6 +20,17 @@ namespace Relua {
             public bool AutofillSequentialKeysInTableConstructor = true;
 
             /// <summary>
+            /// Automatically creates NilLiterals for all values of empty local
+            /// assignments (in the style of `local a`).
+            /// 
+            /// Note that if this option is `false`, `AST.Assignment`'s `Values`
+            /// list will be empty for local declarations. If it is set to the
+            /// default `true`, the `Values` list will always match the `Targets`
+            /// list in size in that case with all entries being `NilLiteral`s.
+            /// </summary>
+            public bool AutofillValuesInLocalDeclaration = true;
+
+            /// <summary>
             /// Automatically fills in the `Step` field of `AST.NumericFor` with
             /// a `NumberLiteral` of value `1` if the statement did not specify
             /// the step expression.
@@ -40,12 +51,6 @@ namespace Relua {
             /// is imitated, including errors where they are not strictly necessary.
             /// </summary>
             public bool MaintainSyntaxErrorCompatibility = false;
-
-            /// <summary>
-            /// If enabled, adds a few things annoyingly missing from Lua:
-            /// - All binop statements (like += or not=)
-            /// </summary>
-            public bool LanguageExtensions = false;
         }
 
         public List<Token> Tokens = new List<Token>();
@@ -647,8 +652,13 @@ namespace Relua {
             };
         }
 
-        public Assignment TryReadFullAssignment(IExpression start_expr, Token expr_token) {
-            if (CurToken.IsPunctuation("=") || CurToken.IsPunctuation(",")) {
+        public Assignment TryReadFullAssignment(bool certain_assign, IExpression start_expr, Token expr_token) {
+            // certain_assign should be set to true if we know that
+            // what we have is definitely an assignment
+            // that allows us to handle implicit nil assignments (local
+            // declarations without a value) as an Assignment node
+
+            if (certain_assign || (CurToken.IsPunctuation("=") || CurToken.IsPunctuation(","))) {
                 if (!(start_expr is IAssignable)) ThrowExpect("assignable expression", expr_token);
 
                 var assign_exprs = new List<IAssignable> { start_expr as IAssignable };
@@ -661,8 +671,28 @@ namespace Relua {
                     assign_exprs.Add(start_expr as IAssignable);
                 }
 
+                if (certain_assign && !CurToken.IsPunctuation("=")) {
+                    // implicit nil assignment/local declaration
+
+                    var local_decl = new Assignment {
+                        IsLocal = true,
+                        Targets = assign_exprs
+                    };
+
+                    if (ParserSettings.AutofillValuesInLocalDeclaration) {
+                        // Match Values with NilLiterals
+                        for (var i = 0; i < assign_exprs.Count; i++) {
+                            local_decl.Values.Add(NilLiteral.Instance);
+                        }
+                    }
+
+                    return local_decl;
+                }
+
                 return ReadAssignment(assign_exprs);
             }
+
+
 
             return null;
         }
@@ -680,7 +710,7 @@ namespace Relua {
             return new Assignment {
                 IsLocal = local,
                 Targets = assignable_exprs,
-                Values = value_exprs
+                Values = value_exprs,
             };
         }
 
@@ -868,7 +898,7 @@ namespace Relua {
                 } else {
                     var local_expr_token = CurToken;
                     var local_expr = ReadExpression();
-                    var local_assign = TryReadFullAssignment(local_expr, local_expr_token);
+                    var local_assign = TryReadFullAssignment(true, local_expr, local_expr_token);
                     if (local_assign == null) ThrowExpect("assignment statement", CurToken);
                     local_assign.IsLocal = true;
                     return local_assign;
@@ -877,7 +907,7 @@ namespace Relua {
 
             var expr_token = CurToken;
             var expr = ReadExpression();
-            var assign = TryReadFullAssignment(expr, expr_token);
+            var assign = TryReadFullAssignment(false, expr, expr_token);
             if (assign != null) return assign;
 
             if (expr is FunctionCall) {

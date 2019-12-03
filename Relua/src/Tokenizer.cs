@@ -256,14 +256,6 @@ namespace Relua {
             if (c == '.' && p == '.') { reg.End(); Move(); return ".."; }
             if (c == '~' && p == '=') { reg.End(); Move(); return "~="; }
 
-            if (ParserSettings.LanguageExtensions) {
-                if (OperatorInfo.BinaryOperatorExists(c.ToString()) && p == '=') {
-                    reg.End();
-                    Move();
-                    return $"{c.ToString()}=";
-                }
-            }
-
             return c.ToString();
         }
 
@@ -354,14 +346,6 @@ namespace Relua {
                 Region reg;
                 var val = ReadIdentifier(out reg);
                 if (RESERVED_KEYWORDS.Contains(val)) {
-                    if (ParserSettings.LanguageExtensions) {
-                        if (OperatorInfo.BinaryOperatorExists(val) && Peek(1) == '=') {
-                            Move();
-                            reg.End();
-                            Move();
-                            return new Token(TokenType.Punctuation, $"{val}=", reg);
-                        }
-                    }
                     return new Token(TokenType.Punctuation, val, reg);
                 } else {
                     return new Token(TokenType.Identifier, val, reg);
