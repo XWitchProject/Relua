@@ -1,0 +1,3 @@
+[submodule "Relua.Script/libs/XTRuntime"]
+	path = Relua.Script/libs/XTRuntime
+	url = https://github.com/xwitchproject/XTRuntime

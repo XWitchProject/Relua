@@ -45,6 +45,10 @@
       <Project>{47566D06-A688-4E97-83B4-BE04F254E304}</Project>
       <Name>Relua</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Relua.Script\libs\XTRuntime\XTRuntime\XTRuntime.csproj">
+      <Project>{1B353B11-9108-4A90-8895-3E1CD2AA4339}</Project>
+      <Name>XTRuntime</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

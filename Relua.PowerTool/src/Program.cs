@@ -104,7 +104,7 @@ namespace Relua.PowerTool {
             }
 
             try {
-                var runtime = new ReluaRuntime();
+                var runtime = new XTRuntime.XTRuntime();
                 var visitor = new LuaVisitor(runtime);
                 runtime.DoFile(args[1]);
 

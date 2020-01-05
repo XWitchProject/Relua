@@ -2,17 +2,21 @@
 using Relua;
 using Relua.AST;
 using System.Collections.Generic;
+using XTRuntime;
 
 namespace Relua.Script {
-    public class LuaVisitor : IVisitor {
-        public ReluaRuntime Runtime;
+    public partial class LuaVisitor : IVisitor {
+        public XTRuntime.XTRuntime Runtime;
 
         public HashSet<string> UnavailableFunctions = new HashSet<string>();
         public HashSet<string> AvailableFunctions = new HashSet<string>();
 
-        public LuaVisitor(ReluaRuntime runtime) {
+        public LuaVisitor(XTRuntime.XTRuntime runtime) {
             Runtime = runtime;
             AddVisitorFunctions();
+            CreateListMethodMaps();
+            CreateMetatables();
+            AddASTFunctions();
         }
 
         public bool FunctionExists(string name) {
