@@ -53,33 +53,17 @@ namespace Relua {
             public bool MaintainSyntaxErrorCompatibility = false;
         }
 
-        public List<Token> Tokens = new List<Token>();
-        public int CurTokenIndex = 0;
-        public int BacktrackIndex = -1;
         public Tokenizer Tokenizer;
         public Settings ParserSettings;
 
-
-        public Token CurToken {
-            get {
-                if (Tokens.Count == 0) return Token.EOF;
-                return Tokens[CurTokenIndex];
-            }
-        }
+        public Token CurToken;
 
         public void Move() {
             if (CurToken.Type == TokenType.EOF) return;
-            CurTokenIndex += 1;
+            CurToken = Tokenizer.NextToken();
         }
 
-        public Token Peek(int n = 1) {
-            var idx = CurTokenIndex + n;
-            if (idx >= Tokens.Count) {
-                return Token.EOF;
-            }
-
-            return Tokens[idx];
-        }
+        public Token PeekToken => Tokenizer.PeekToken;
 
         public void Throw(string msg, Token tok) {
             throw new ParserException(msg, tok.Region);
@@ -89,20 +73,6 @@ namespace Relua {
             throw new ParserException($"Expected {expected}, got {tok.Type} ({tok.Value.Inspect()})", tok.Region);
         }
 
-        public void StartBacktrack() {
-            BacktrackIndex = CurTokenIndex;
-        }
-
-        public void CommitBacktrack() {
-            if (BacktrackIndex < 0) throw new ParserException("Failed to backtrack - no backtrack point set or last point cancelled");
-            CurTokenIndex = BacktrackIndex;
-            BacktrackIndex = -1;
-        }
-
-        public void CancelBacktrack() {
-            BacktrackIndex = -1;
-        }
-
         public Parser(string data, Settings settings = null) : this(new Tokenizer(data, settings), settings) { }
 
         public Parser(StreamReader r, Settings settings = null) : this(new Tokenizer(r.ReadToEnd(), settings), settings) { }
@@ -110,12 +80,7 @@ namespace Relua {
         public Parser(Tokenizer tokenizer, Settings settings = null) {
             ParserSettings = settings ?? new Settings();
             Tokenizer = tokenizer;
-            var tok = tokenizer.NextToken();
-            while (tok.Type != TokenType.EOF) {
-                Tokens.Add(tok);
-                tok = tokenizer.NextToken();
-            }
-            Tokens.Add(tok);
+            CurToken = tokenizer.NextToken();
         }
 
         public NilLiteral ReadNilLiteral() {
@@ -246,7 +211,7 @@ namespace Relua {
 
         public TableConstructor.Entry ReadTableConstructorEntry() {
             if (CurToken.Type == TokenType.Identifier) {
-                var eq = Peek(1);
+                var eq = PeekToken;
                 if (eq.IsPunctuation("=")) {
                     // { a = ... }
 
@@ -375,7 +340,7 @@ namespace Relua {
             }
 
             if (CurToken.Type == TokenType.Number) {
-                if (ParserSettings.EnableLuaJITLongs && Peek(1).IsIdentifier("LL")) {
+                if (ParserSettings.EnableLuaJITLongs && PeekToken.IsIdentifier("LL")) {
                     return ReadLuaJITLongLiteral();
                 } else {
                     return ReadNumberLiteral();
@@ -848,7 +813,7 @@ namespace Relua {
 
             Move();
 
-            var peek = Peek(1);
+            var peek = PeekToken;
             if (peek.IsPunctuation(",") || peek.IsPunctuation("in")) {
                 return ReadGenericFor();
             } else {

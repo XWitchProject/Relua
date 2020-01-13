@@ -90,6 +90,14 @@ namespace Relua {
             };
         }
 
+        private Token? _CachedPeekToken = null;
+        public Token PeekToken {
+            get {
+                if (_CachedPeekToken.HasValue) return _CachedPeekToken.Value;
+                return (_CachedPeekToken = NextToken()).Value;
+            }
+        }
+
         public void Throw(string msg) {
             throw new TokenizerException(msg, CurrentLine, CurrentColumn);
         }
@@ -318,6 +326,12 @@ namespace Relua {
         }
 
         public Token NextToken() {
+            if (_CachedPeekToken.HasValue) {
+                var tok = _CachedPeekToken.Value;
+                _CachedPeekToken = null;
+                return tok;
+            }
+
             SkipWhitespace();
 
             var c = CurChar;
